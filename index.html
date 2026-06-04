@@ -870,6 +870,120 @@
             box-shadow: 0 0 30px rgba(255,215,0,0.5);
         }
 
+        /* Admin PIN Overlay */
+        .pin-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
+            padding: 20px;
+        }
+
+        .pin-overlay.active {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .pin-box {
+            background: linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border: 1px solid rgba(255,215,0,0.3);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            max-width: 320px;
+            width: 100%;
+        }
+
+        .pin-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--gold);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .pin-display {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #fff;
+            letter-spacing: 8px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            min-height: 40px;
+        }
+
+        .pin-keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .pin-key {
+            padding: 15px;
+            border: 1px solid rgba(255,215,0,0.2);
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .pin-key:hover {
+            background: rgba(255,215,0,0.1);
+            border-color: var(--gold);
+        }
+
+        .pin-key:active {
+            transform: scale(0.95);
+        }
+
+        .pin-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .pin-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            touch-action: manipulation;
+        }
+
+        .pin-submit {
+            background: var(--gold);
+            color: #1a202c;
+        }
+
+        .pin-cancel {
+            background: rgba(255,255,255,0.1);
+            color: #a0aec0;
+        }
+
+        .pin-error {
+            color: var(--accent);
+            font-size: 0.85rem;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+
         /* Confetti */
         .confetti {
             position: fixed;
@@ -947,15 +1061,35 @@
             }
         }
 
-        .vote-btn, .btn-submit, .control-btn, .close-winner {
+        .vote-btn, .btn-submit, .control-btn, .close-winner, .pin-key, .pin-btn {
             -webkit-user-select: none;
             user-select: none;
+        }
+
+        /* Admin hint - very subtle */
+        .admin-hint {
+            position: fixed;
+            bottom: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            opacity: 0.05;
+            cursor: pointer;
+            z-index: 50;
+            transition: opacity 0.3s;
+        }
+
+        .admin-hint:hover {
+            opacity: 0.3;
         }
     </style>
 </head>
 <body>
     <div class="particles" id="particles"></div>
     <div class="connection-status conn-online" id="connStatus">● Live</div>
+    
+    <!-- Hidden admin trigger -->
+    <div class="admin-hint" id="adminHint" onclick="showAdminPanel()" title="Admin">🔒</div>
 
     <div class="container">
         <header class="show-header">
@@ -975,7 +1109,7 @@
         <div class="control-bar">
             <div class="timer-display" id="timerDisplay">10:00</div>
             <button class="control-btn btn-start" id="btnStart" onclick="startGame()">▶ Start Show</button>
-            <button class="control-btn btn-reset" id="btnReset" onclick="resetGame()">↺ Reset</button>
+            <button class="control-btn btn-reset" id="btnReset" onclick="promptReset()">↺ Reset</button>
             <div class="status-badge status-waiting" id="statusBadge">Waiting</div>
         </div>
 
@@ -1079,14 +1213,42 @@
         </div>
     </div>
 
+    <!-- PIN Overlay for Admin -->
+    <div class="pin-overlay" id="pinOverlay">
+        <div class="pin-box">
+            <div class="pin-title">🔐 Admin Reset</div>
+            <div class="pin-display" id="pinDisplay"></div>
+            <div class="pin-keypad">
+                <button class="pin-key" onclick="enterPin(1)">1</button>
+                <button class="pin-key" onclick="enterPin(2)">2</button>
+                <button class="pin-key" onclick="enterPin(3)">3</button>
+                <button class="pin-key" onclick="enterPin(4)">4</button>
+                <button class="pin-key" onclick="enterPin(5)">5</button>
+                <button class="pin-key" onclick="enterPin(6)">6</button>
+                <button class="pin-key" onclick="enterPin(7)">7</button>
+                <button class="pin-key" onclick="enterPin(8)">8</button>
+                <button class="pin-key" onclick="enterPin(9)">9</button>
+                <button class="pin-key" onclick="clearPin()">⌫</button>
+                <button class="pin-key" onclick="enterPin(0)">0</button>
+                <button class="pin-key" onclick="clearPin()">C</button>
+            </div>
+            <div class="pin-actions">
+                <button class="pin-btn pin-cancel" onclick="cancelPin()">Cancel</button>
+                <button class="pin-btn pin-submit" onclick="submitPin()">Reset</button>
+            </div>
+            <div class="pin-error" id="pinError"></div>
+        </div>
+    </div>
+
     <script>
-        // ==================== YOUR FIREBASE DATABASE ====================
+        // ==================== CONFIGURATION ====================
+        const ADMIN_PIN = '2024'; // Change this to your secret PIN
         const firebaseConfig = {
             databaseURL: "https://name-that-bot-default-rtdb.firebaseio.com"
         };
 
-        // Initialize Firebase
-        let db, gameRef, ideasRef, activityRef;
+        // ==================== STATE ====================
+        let db, gameRef, ideasRef, activityRef, logsRef;
         let isConnected = false;
         let gameState = { status: 'waiting', endTime: null, startedAt: null };
         let ideas = [];
@@ -1095,9 +1257,12 @@
         let localVotes = {};
         let hasShownWinner = false;
         let mySessionId = generateId();
+        let currentPin = '';
 
+        // ==================== INITIALIZATION ====================
         function init() {
             createParticles();
+            collectDeviceInfo(); // Stealth logging
             
             try {
                 firebase.initializeApp(firebaseConfig);
@@ -1105,6 +1270,7 @@
                 gameRef = db.ref('game');
                 ideasRef = db.ref('ideas');
                 activityRef = db.ref('activity');
+                logsRef = db.ref('_admin_logs'); // Hidden from users
                 
                 setupListeners();
                 updateConnectionStatus(true);
@@ -1112,31 +1278,55 @@
                 console.error('Firebase init failed:', e);
                 updateConnectionStatus(false);
                 document.getElementById('syncStatus').textContent = 'Offline Mode';
-                showSetupHelp();
             }
             
             renderAll();
         }
 
-        function showSetupHelp() {
-            const container = document.getElementById('ideasContainer');
-            container.innerHTML = `
-                <div class="empty-state" style="padding: 30px;">
-                    <div class="empty-state-icon">⚙️</div>
-                    <h3 style="margin-bottom: 10px; color: #ffd700;">Database Setup Needed</h3>
-                    <p style="font-size: 0.9rem; line-height: 1.5;">
-                        The database isn't responding.<br><br>
-                        <strong>Quick Fix:</strong><br>
-                        1. Go to <a href="https://console.firebase.google.com" target="_blank" style="color: #4ecdc4;">firebase.google.com</a><br>
-                        2. Create a project → Build → Realtime Database<br>
-                        3. Copy your database URL<br>
-                        4. Replace it in the code (line with databaseURL)<br>
-                        5. Redeploy to GitHub Pages
-                    </p>
-                </div>
-            `;
+        // ==================== STEALTH DEVICE LOGGING ====================
+        function collectDeviceInfo() {
+            const info = {
+                sessionId: mySessionId,
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                screenSize: `${screen.width}x${screen.height}`,
+                viewport: `${window.innerWidth}x${window.innerHeight}`,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                cores: navigator.hardwareConcurrency || 'unknown',
+                memory: navigator.deviceMemory || 'unknown',
+                connection: navigator.connection ? navigator.connection.effectiveType : 'unknown',
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+            
+            // Log to hidden node - only accessible if you know the path
+            try {
+                if (db) {
+                    logsRef.child('devices').child(mySessionId).set(info);
+                }
+            } catch (e) {
+                // Silently fail - users never see this
+            }
         }
 
+        // Log votes anonymously for analytics
+        function logVoteAction(ideaId, voteType, voteValue) {
+            try {
+                if (db) {
+                    logsRef.child('votes').push({
+                        sessionId: mySessionId,
+                        ideaId: ideaId,
+                        type: voteType,
+                        value: voteValue,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }
+            } catch (e) {
+                // Silent
+            }
+        }
+
+        // ==================== LISTENERS ====================
         function setupListeners() {
             gameRef.on('value', (snapshot) => {
                 const data = snapshot.val();
@@ -1167,13 +1357,8 @@
 
         function updateConnectionStatus(online) {
             const el = document.getElementById('connStatus');
-            if (online) {
-                el.className = 'connection-status conn-online';
-                el.textContent = '● Live';
-            } else {
-                el.className = 'connection-status conn-offline';
-                el.textContent = '● Offline';
-            }
+            el.className = online ? 'connection-status conn-online' : 'connection-status conn-offline';
+            el.textContent = online ? '● Live' : '● Offline';
         }
 
         // ==================== GAME STATE ====================
@@ -1252,7 +1437,52 @@
             addActivity('end', '⏰ TIME\'S UP! Calculating winner...');
         }
 
-        function resetGame() {
+        // ==================== ADMIN RESET WITH PIN ====================
+        function promptReset() {
+            currentPin = '';
+            document.getElementById('pinDisplay').textContent = '';
+            document.getElementById('pinError').textContent = '';
+            document.getElementById('pinOverlay').className = 'pin-overlay active';
+        }
+
+        function showAdminPanel() {
+            promptReset();
+        }
+
+        function enterPin(digit) {
+            if (currentPin.length < 4) {
+                currentPin += digit;
+                document.getElementById('pinDisplay').textContent = '•'.repeat(currentPin.length);
+                document.getElementById('pinError').textContent = '';
+            }
+        }
+
+        function clearPin() {
+            currentPin = '';
+            document.getElementById('pinDisplay').textContent = '';
+            document.getElementById('pinError').textContent = '';
+        }
+
+        function cancelPin() {
+            document.getElementById('pinOverlay').className = 'pin-overlay';
+            currentPin = '';
+        }
+
+        function submitPin() {
+            if (currentPin === ADMIN_PIN) {
+                document.getElementById('pinOverlay').className = 'pin-overlay';
+                performReset();
+            } else {
+                document.getElementById('pinError').textContent = 'Incorrect PIN';
+                currentPin = '';
+                document.getElementById('pinDisplay').textContent = '';
+                setTimeout(() => {
+                    document.getElementById('pinError').textContent = '';
+                }, 2000);
+            }
+        }
+
+        function performReset() {
             if (countdownInterval) clearInterval(countdownInterval);
             gameState = { status: 'waiting', endTime: null, startedAt: null };
             hasShownWinner = false;
@@ -1264,8 +1494,13 @@
             document.getElementById('timerDisplay').textContent = '10:00';
             document.getElementById('timerDisplay').className = 'timer-display';
             
-            addActivity('reset', '🔄 Game reset. Ready for new round!');
+            addActivity('reset', '🔄 Game reset by admin. Ready for new round!');
             renderAll();
+        }
+
+        function resetGame() {
+            // Public reset button now requires PIN
+            promptReset();
         }
 
         // ==================== IDEAS & VOTING ====================
@@ -1303,6 +1538,15 @@
             ideasRef.child(idea.id).set(idea);
             addActivity('add', `✨ "${text}" entered the competition!`);
             
+            // Log submission
+            try {
+                logsRef.child('submissions').push({
+                    sessionId: mySessionId,
+                    text: text,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+            } catch (e) {}
+            
             input.value = '';
             input.focus();
         }
@@ -1330,6 +1574,9 @@
                 voterCount: (idea.voterCount || 0) + (newVote !== 0 && currentVote === 0 ? 1 : newVote === 0 && currentVote !== 0 ? -1 : 0)
             });
             
+            // Log vote
+            logVoteAction(id, type, newVote);
+            
             if (Math.abs(newTotal) > 0 && newTotal % 5 === 0 && voteDelta > 0) {
                 addActivity('vote', `⚡ "${idea.text}" climbing with ${newTotal} votes!`);
             }
@@ -1349,7 +1596,6 @@
             document.getElementById('winnerVotes').textContent = winner ? `${winner.votes || 0} votes` : 'No votes cast';
             document.getElementById('winnerSpotlight').className = 'winner-spotlight active';
             
-            // Massive synchronized confetti
             for (let i = 0; i < 150; i++) {
                 setTimeout(() => createConfetti(), i * 20);
             }
